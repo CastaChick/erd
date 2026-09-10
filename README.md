@@ -1,10 +1,20 @@
-# PostgreSQL ER diagram CLI
+# @castachick/erd
 
 PostgreSQLの実スキーマを読み取り、関連するテーブルを分割したMermaid ER図を生成するCLIです。ORMやmigrationファイルには依存せず、テーブルの行データは読みません。
 
-## セットアップ
+## インストール（npm公開後）
 
 Node.js 20以上が必要です。
+
+```bash
+npm install -g @castachick/erd
+export DATABASE_URL='postgresql://user:password@localhost:5432/app'
+erd --schema public --max-tables 15 --out ./docs/erd
+```
+
+プロジェクトに開発依存として追加する場合は `npm install -D @castachick/erd`、実行は `npx erd` です。インストールせず一度だけ実行する場合は `npx --package @castachick/erd erd --schema public` を使用できます。
+
+## ソースから開発
 
 ```bash
 npm ci
@@ -101,4 +111,24 @@ TEST_DATABASE_URL='postgresql://localhost/erd_test' npm run test:integration
 
 `src/postgres`がSQL・接続、`src/schema-graph`が中間モデルとfilter、`src/analysis`がグラフ分割、`src/render`がMermaid・JSON・indexを担当します。`generate()`は接続情報不要の純粋な生成API、`run()`はDB取得からファイル出力までのAPIです。
 
-設計の基準は[handoff](./postgresql-er-diagram-cli-handoff.md)です。Mermaidのcardinalityは[公式構文](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)、Louvainの設定は[Graphology公式ドキュメント](https://graphology.github.io/standard-library/communities-louvain.html)と採用パッケージの宣言・実装を確認しています。
+設計の基準は[handoff](https://github.com/CastaChick/erd/blob/main/postgresql-er-diagram-cli-handoff.md)です。Mermaidのcardinalityは[公式構文](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)、Louvainの設定は[Graphology公式ドキュメント](https://graphology.github.io/standard-library/communities-louvain.html)と採用パッケージの宣言・実装を確認しています。
+
+## npm公開手順（メンテナー向け）
+
+公開名は `@castachick/erd`、初回バージョンは `0.1.0` です。`publishConfig`でnpm公式registryとpublic公開を指定しています。この準備段階ではまだ公開していません。
+
+マージ後、最新のmainで以下を実行します。
+
+```bash
+npm ci
+npm run test:package
+npm publish --dry-run
+# 配布内容とバージョンを確認してから実際に公開
+npm publish
+```
+
+`test:package`はtarballを生成し、一時ディレクトリへ本番依存だけでインストールしてCLIとESM APIを検証します。終了時に一時ファイルを削除します。`npm publish`では`prepublishOnly`が型チェックとテストを実行し、`prepack`がdistを再生成します。配布内容はdist、README、package.jsonに限定し、開発用ソースやテストは含めません。
+
+DB統合テストも実行する場合は、専用DBの`TEST_DATABASE_URL`を設定してください。未指定時は統合テストをスキップします。`--dry-run`は実際の公開や2FA認証の成功を保証するものではありません。公開時にnpmから認証を要求された場合はその案内に従ってください。
+
+以後のリリースでは未公開のバージョンへ更新します。同じバージョンの再公開はできません。公開後は `npm view @castachick/erd version` と `npx --package @castachick/erd erd --help` で確認できます。
