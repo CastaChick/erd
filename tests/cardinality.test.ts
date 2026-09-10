@@ -1,0 +1,22 @@
+import { it, expect } from 'vitest';
+import { cardinality } from '../src/render/mermaid.js';
+import { fixture, fk } from './fixtures/graph.js';
+it('infers nullability and uniqueness, including composite keys without promoting members to unique', () => {
+  const relation = fk('child','parent');
+  const child = fixture(['child','parent'], [relation]).tables[0];
+  expect(cardinality(relation, child, 'inferred')).toBe('||..o{');
+  child.columns[1].nullable = true;
+  expect(cardinality(relation, child, 'inferred')).toBe('|o..o{');
+  child.uniqueConstraints = [{ name: 'u', columns: ['parent_id'] }];
+  expect(cardinality(relation, child, 'inferred')).toBe('|o..o|');
+  child.columns[1].nullable = false;
+  expect(cardinality(relation, child, 'inferred')).toBe('||..o|');
+  child.uniqueConstraints = [{ name: 'u', columns: ['parent_id','version'] }];
+  expect(cardinality(relation, child, 'inferred')).toBe('||..o{');
+  relation.sourceColumns.push('version');
+  child.columns.push({ name: 'version', dataType: 'integer', nullable: false, primaryKey: false, unique: false });
+  expect(cardinality(relation, child, 'inferred')).toBe('||..o|');
+  child.primaryKey = ['parent_id','version'];
+  expect(cardinality(relation, child, 'inferred')).toBe('||--o|');
+  expect(cardinality(relation, child, 'simple')).toBe('}o..o{');
+});

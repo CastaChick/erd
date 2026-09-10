@@ -1,0 +1,36 @@
+{
+  "name": "postgres-erd-cli",
+  "version": "0.1.0",
+  "description": "Decompose PostgreSQL schemas into readable Mermaid ER diagrams",
+  "type": "module",
+  "bin": { "erd": "dist/cli.js" },
+  "exports": "./dist/main.js",
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run tests/integration.test.ts",
+    "dev": "tsx src/cli.ts",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "graphology": "^0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "picomatch": "^4.0.3",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.5",
+    "@types/picomatch": "^4.0.2",
+    "typescript": "^5.9.2",
+    "tsx": "^4.20.5",
+    "vitest": "^3.2.4",
+    "mermaid": "^11.12.0",
+    "jsdom": "^26.1.0",
+    "@types/jsdom": "^21.1.7"
+  }
+}
