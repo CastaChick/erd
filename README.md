@@ -1,1 +1,104 @@
-# erd
+# PostgreSQL ER diagram CLI
+
+PostgreSQLの実スキーマを読み取り、関連するテーブルを分割したMermaid ER図を生成するCLIです。ORMやmigrationファイルには依存せず、テーブルの行データは読みません。
+
+## セットアップ
+
+Node.js 20以上が必要です。
+
+```bash
+npm ci
+npm run build
+export DATABASE_URL='postgresql://user:password@localhost:5432/app'
+node dist/cli.js --schema public --max-tables 15 --out ./docs/erd
+```
+
+開発中は `npm run dev -- --schema public --out ./docs/erd` でも実行できます。パッケージをグローバルインストールすると `erd` コマンドが使えます。
+
+```bash
+npm install -g .
+erd --schema public --schema auth --out ./docs/erd
+```
+
+## オプション
+
+| オプション | デフォルト | 内容 |
+| --- | --- | --- |
+| `--database-url <url>` | `DATABASE_URL` | 接続URL。明示指定を優先 |
+| `--schema <schema>` | `public` | 対象schema。繰り返し指定可能 |
+| `--out <directory>` | `./erd` | 出力先 |
+| `--max-tables <number>` | `15` | 各図の主テーブル数の上限。1以上 |
+| `--context-depth <number>` | `1` | 隣接テーブルを追加。0または1 |
+| `--max-context-tables <number>` | `5` | 別枠で追加するcontext数の上限。0以上 |
+| `--columns <all\|keys\|none>` | `keys` | 全カラム／PK・FK・UNIQUEカラム／カラムなし |
+| `--cardinality <inferred\|simple>` | `inferred` | 制約から推定／両端0..Nの簡略表示 |
+| `--include-table <glob>` | すべて | テーブル名または`schema.table`にマッチ。繰り返し指定可能 |
+| `--exclude-table <glob>` | なし | 除外glob。繰り返し指定可能。includeより優先 |
+| `--help` | | 使用方法 |
+
+```bash
+erd --schema public --exclude-table '__drizzle_*' --columns keys --out ./docs/erd
+```
+
+globはシェルで展開されないよう引用してください。システムschemaは対象外です。アプリケーションのテーブルを暗黙に除外しないため、migration管理テーブルの除外は明示指定してください。
+
+## 出力
+
+```text
+docs/erd/
+├── index.md
+├── overview.mmd
+├── 01-interview.mmd
+├── 02-team.mmd
+└── graph.json
+```
+
+`index.md`に各図へのリンク、hub、主テーブルとcontext、警告を記載します。`.mmd`はMermaid対応ビューアで開けます。`overview.mmd`は全対象テーブルとFKをカラムなしで表示し、各図にはhub/contextの表示ラベルを付けます。`graph.json`には元の型、カラム順、複合PK・UNIQUE・FK、参照動作とcommunityを保存します。
+
+同じDB状態・オプション・依存バージョンでは、時刻を含めず同じ出力を生成します。生成対象と同名のファイルは上書きします。以前の実行の図や利用者のファイルは削除しないため、分割条件を変更した際は`index.md`を現行の図の一覧として利用してください。
+
+## 分割と関係の解釈
+
+- FK制約1個を重み1とする単純無向グラフを解析します。同じテーブル対の複数FKは重みを加算し、複合FKは1個として扱います。
+- Louvainを固定順で実行し、大きすぎるcommunityは再分割します。分割できない場合は接続の強い隣接ノードを順に追加するgreedy法へ切り替えます。
+- 全テーブルはちょうど1つの主グループに所属します。hubは内部の隣接テーブル数、全体の隣接数、テーブルIDの順で選びます。
+- contextは主グループとのFK数、hubとの直接接続、全体の隣接数、IDの順で選びます。context同士の関係や2 hop先の関係は描きません。
+- `max-tables`は**主テーブルだけ**の上限です。図全体の上限は`max-tables + max-context-tables`です。
+- 他の対象テーブルと接続のないテーブルは独立グループにまとめます。自己参照FKは解析の重みから除外し、図とJSONには残します。
+- 対象外schemaやfilterで除外されたテーブルへのFKはJSONに保持し、図では省略して警告します。必要なschemaは`--schema`で追加してください。
+
+FKカラムがすべてNOT NULLなら親側は1、nullableなカラムがあれば0..1です。FKカラム集合がPK／UNIQUE制約の全カラムを含む場合、子側は0..1、それ以外は0..Nです。FKカラムがすべて子のPKに含まれる場合は実線、それ以外は破線で描画します。
+
+Mermaidの`UK`は複合UNIQUEの構成カラムにも付きますが、コメントで複合制約のメンバーであることを示します。個々のカラムが単独でuniqueという意味ではありません。元の制約単位はJSONで確認できます。特殊文字を持つ名前や型はMermaid用に正規化し、表示ラベル／カラムコメントとJSONに元の名前を保持します。
+
+v1では通常テーブルとpartitioned table（子partitionを含む）が対象です。view・materialized view・foreign table、UNIQUE制約ではない独立unique index、FKのMATCH FULLやアプリケーション上の関係は推定しません。`simple`は両端を0..Nとする概略表示で、制約の正確な再現には使用しないでください。ドット等を含む識別子はJSON内のテーブルIDをSQL形式で引用し、衝突を避けます。
+
+## 安全性とエラー
+
+メタデータ取得は`REPEATABLE READ READ ONLY`トランザクションで行い、接続タイムアウト10秒・SQLタイムアウト30秒を設定します。接続ユーザーには対象schemaのメタデータを参照できる権限を用意してください。認証情報や接続URLは生成物・ログに含めず、DBドライバーの生のエラーも表示しません。
+
+接続失敗、存在しないschema、対象0件、出力失敗、不正オプションは終了コード1となります。外部FKの省略・孤立テーブル・fallback分割は警告です。
+
+## 検証
+
+```bash
+npm run check
+npm test
+npm run build
+```
+
+通常テストはグラフの不変条件、決定性、複合制約、cardinality、CLIの引数検証・認証情報非表示、実際のMermaidパーサーによる構文検証を含みます。
+
+PostgreSQL統合テストは専用テストDBを指定して実行します。指定がなければスキップします。指定DBに一時schemaを作成し、テスト後に削除します。PostgreSQL 16で検証しています。
+
+```bash
+TEST_DATABASE_URL='postgresql://localhost/erd_test' npm run test:integration
+```
+
+統合テストでは複合FKの順序、同名制約、複数schema、型とNULL制約、partition、CLI出力と再実行の一致、失敗ケースを検証します。
+
+## 構成
+
+`src/postgres`がSQL・接続、`src/schema-graph`が中間モデルとfilter、`src/analysis`がグラフ分割、`src/render`がMermaid・JSON・indexを担当します。`generate()`は接続情報不要の純粋な生成API、`run()`はDB取得からファイル出力までのAPIです。
+
+設計の基準は[handoff](./postgresql-er-diagram-cli-handoff.md)です。Mermaidのcardinalityは[公式構文](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)、Louvainの設定は[Graphology公式ドキュメント](https://graphology.github.io/standard-library/communities-louvain.html)と採用パッケージの宣言・実装を確認しています。
