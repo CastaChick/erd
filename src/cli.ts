@@ -9,7 +9,7 @@ try {
   program.parse();
   const result = await run(parseConfig(program));
   for (const warning of result.warnings) console.error(`Warning: ${warning}`);
-  console.log(`Generated ${result.diagrams} ER diagrams, overview.mmd, index.md and graph.json.`);
+  console.log(`Generated ${result.diagrams} ER diagrams and overview (Mermaid + SVG), index.md and graph.json.`);
 } catch (error) {
   if (error instanceof CommanderError && error.exitCode === 0) {
     process.exitCode = 0;

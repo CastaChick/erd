@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readSchema } from '../src/postgres/client.js';
 import { buildSchemaGraph } from '../src/schema-graph/build.js';
-import { generate } from '../src/main.js';
+import { generateWithSvg } from '../src/main.js';
 import { options } from './fixtures/graph.js';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -81,13 +81,14 @@ describe.skipIf(!databaseUrl)('PostgreSQL integration (disposable schemas)', () 
     const first = await Promise.all(names.map(n => readFile(join(output,n), 'utf8')));
     await promisify(execFile)(process.execPath, args, { env });
     expect(await Promise.all(names.map(n => readFile(join(output,n), 'utf8')))).toEqual(first);
-    const generated = generate(await readSchema(databaseUrl!, [schema,other]), { ...options, maxTables: 3 });
+    const generated = await generateWithSvg(await readSchema(databaseUrl!, [schema,other]), { ...options, maxTables: 3 });
     for (let i = 0; i < names.length; i++) expect(first[i]).toBe(generated.files.get(names[i]));
     expect(names).toContain('index.md');
     expect(names).toContain('overview.mmd');
     expect(names).toContain('graph.json');
+    expect(names).toContain('overview.svg');
     expect(first.join('')).not.toContain(databaseUrl!);
-  });
+  }, 60000);
   it('reports missing schema, zero matching tables and unwritable output with safe errors', async () => {
     await expect(readSchema(databaseUrl!, [`${schema}_missing`])).rejects.toThrow(/schemas do not exist/);
     const file = join(output,'not-a-directory');
@@ -100,5 +101,5 @@ describe.skipIf(!databaseUrl)('PostgreSQL integration (disposable schemas)', () 
         ['--import','tsx','src/cli.ts','--schema',schema,...extra],
         { env: { ...process.env, DATABASE_URL: databaseUrl } })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining(message) });
     }
-  });
+  }, 60000);
 });

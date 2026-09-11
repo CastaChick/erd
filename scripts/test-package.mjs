@@ -18,8 +18,11 @@ try {
   assert.equal(installed.publishConfig.access, 'public');
   const help = execFileSync(join(temp, 'node_modules/.bin/erd'), ['--help'], { encoding: 'utf8' });
   assert.match(help, /Usage: erd/);
-  execFileSync(process.execPath, ['--input-type=module', '-e', "import { generate } from '@castachick/erd'; if (typeof generate !== 'function') process.exit(1)"], { cwd: temp, stdio: 'inherit' });
-  console.log('Packed package installs with production dependencies; erd CLI and ESM API work.');
+  execFileSync(process.execPath, ['--input-type=module', '-e', `import { generateWithSvg } from '@castachick/erd';
+    const graph = { tables: [{ schema: 'public', name: 'sample', columns: [], primaryKey: [], uniqueConstraints: [] }], foreignKeys: [] };
+    const result = await generateWithSvg(graph, { maxTables: 15, maxContextTables: 5, contextDepth: 1, columns: 'keys', cardinality: 'inferred', includeTable: [], excludeTable: [] });
+    if (!result.files.get('overview.svg')?.includes('<svg') || !result.files.get('index.md')?.includes('](./overview.svg)')) process.exit(1);`], { cwd: temp, stdio: 'inherit' });
+  console.log('Packed package installs with production dependencies; erd CLI, ESM API and SVG rendering work.');
 } finally {
   await rm(temp, { recursive: true, force: true });
 }

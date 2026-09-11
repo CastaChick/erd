@@ -12,8 +12,9 @@ import { contextTables } from './analysis/context.js';
 import { renderMermaid } from './render/mermaid.js';
 import { renderIndex } from './render/index.js';
 import { renderJson } from './render/json.js';
+import { renderSvgs } from './render/svg.js';
 export type GenerationOptions = Omit<Config, 'databaseUrl' | 'schema' | 'out'>;
-export function generate(input: SchemaGraph, options: GenerationOptions): {
+function generateFiles(input: SchemaGraph, options: GenerationOptions, svg: boolean): {
   files: Map<string, string>; warnings: string[]; communities: Community[];
 } {
   const { graph: schema, warnings } = buildSchemaGraph(input, options.includeTable, options.excludeTable);
@@ -35,15 +36,30 @@ export function generate(input: SchemaGraph, options: GenerationOptions): {
   files.set('overview.mmd', renderMermaid(schema, { ...options, columns: 'none' }));
   for (const { community: c, file } of entries) files.set(file, renderMermaid(schema, options, c.tables, c.contextTables, c.hub));
   files.set('graph.json', renderJson(schema, communities));
-  files.set('index.md', renderIndex(entries, warnings));
+  files.set('index.md', renderIndex(entries, warnings, svg));
   return { files, warnings, communities };
+}
+/** Synchronous Mermaid/JSON output, without a browser or SVG image references. */
+export function generate(input: SchemaGraph, options: GenerationOptions) {
+  return generateFiles(input, options, false);
+}
+/** Complete output, including an SVG for every Mermaid diagram and an illustrated index. */
+export async function generateWithSvg(input: SchemaGraph, options: GenerationOptions) {
+  const result = generateFiles(input, options, true);
+  const svgs = await renderSvgs(result.files);
+  for (const [name, contents] of svgs) result.files.set(name, contents);
+  return result;
 }
 export async function run(config: Config): Promise<{ diagrams: number; warnings: string[] }> {
   const schema = await readSchema(config.databaseUrl, config.schema);
-  const result = generate(schema, config);
+  const result = await generateWithSvg(schema, config);
   try {
     await mkdir(config.out, { recursive: true });
-    for (const [file, contents] of result.files) await writeFile(join(config.out, file), contents, 'utf8');
+    // Write the index last so it never points to SVG files that have not been written yet.
+    for (const [file, contents] of result.files) {
+      if (file !== 'index.md') await writeFile(join(config.out, file), contents, 'utf8');
+    }
+    await writeFile(join(config.out, 'index.md'), result.files.get('index.md')!, 'utf8');
   } catch { throw new UserError('Could not write the output directory. Check the path and filesystem permissions.'); }
   return { diagrams: result.communities.length, warnings: result.warnings };
 }
