@@ -1,8 +1,11 @@
 # @castachick/erd
 
+[![npm version](https://img.shields.io/npm/v/%40castachick%2Ferd)](https://www.npmjs.com/package/@castachick/erd)
+[![Node.js version](https://img.shields.io/node/v/%40castachick%2Ferd)](https://www.npmjs.com/package/@castachick/erd)
+
 PostgreSQLの実スキーマを読み取り、関連するテーブルを分割したMermaid ER図を生成するCLIです。ORMやmigrationファイルには依存せず、テーブルの行データは読みません。
 
-## インストール（npm公開後）
+## インストール
 
 Node.js 20以上が必要です。
 
@@ -115,7 +118,7 @@ TEST_DATABASE_URL='postgresql://localhost/erd_test' npm run test:integration
 
 ## npm公開手順（メンテナー向け）
 
-公開名は `@castachick/erd`、初回バージョンは `0.1.0` です。`publishConfig`でnpm公式registryとpublic公開を指定しています。この準備段階ではまだ公開していません。
+公開名は `@castachick/erd`、初回バージョンは `0.1.0` です。`publishConfig`でnpm公式registryとpublic公開を指定しています。
 
 マージ後、最新のmainで以下を実行します。
 
