@@ -17,6 +17,14 @@ erd --schema public --max-tables 15 --out ./docs/erd
 
 プロジェクトに開発依存として追加する場合は `npm install -D @castachick/erd`、実行は `npx erd` です。インストールせず一度だけ実行する場合は `npx --package @castachick/erd erd --schema public` を使用できます。
 
+SVGの生成にはPuppeteerが管理するChromeを使用します。通常はnpmインストール時に自動取得されます（ブラウザー分のダウンロード容量が増えます）。取得をスキップした環境では、次のコマンドで対応ブラウザーを導入してください。
+
+```bash
+npx --package puppeteer@24.43.1 puppeteer browsers install chrome
+```
+
+既存Chromeを使う場合は `PUPPETEER_EXECUTABLE_PATH` に実行ファイルのパスを指定できます。LinuxではChromeの実行に必要な共有ライブラリも必要です。SVG生成はローカルで行い、DBスキーマを外部の描画サービスには送信しません。
+
 ## ソースから開発
 
 ```bash
@@ -61,14 +69,17 @@ globはシェルで展開されないよう引用してください。システ�
 docs/erd/
 ├── index.md
 ├── overview.mmd
+├── overview.svg
 ├── 01-interview.mmd
+├── 01-interview.svg
 ├── 02-team.mmd
+├── 02-team.svg
 └── graph.json
 ```
 
-`index.md`に各図へのリンク、hub、主テーブルとcontext、警告を記載します。`.mmd`はMermaid対応ビューアで開けます。`overview.mmd`は全対象テーブルとFKをカラムなしで表示し、各図にはhub/contextの表示ラベルを付けます。`graph.json`には元の型、カラム順、複合PK・UNIQUE・FK、参照動作とcommunityを保存します。
+`index.md`にoverviewと各部分図のSVGを画像として埋め込み、hub、主テーブルとcontext、警告を記載します。MarkdownプレビューでER図を直接確認でき、各図にはSVG単体とMermaidソースへのリンクもあります。すべての`.mmd`に同じベース名の`.svg`を1対1で生成します。`.mmd`はMermaid対応ビューアで開けます。`overview.mmd`は全対象テーブルとFKをカラムなしで表示し、各図にはhub/contextの表示ラベルを付けます。`graph.json`には元の型、カラム順、複合PK・UNIQUE・FK、参照動作とcommunityを保存します。
 
-同じDB状態・オプション・依存バージョンでは、時刻を含めず同じ出力を生成します。生成対象と同名のファイルは上書きします。以前の実行の図や利用者のファイルは削除しないため、分割条件を変更した際は`index.md`を現行の図の一覧として利用してください。
+同じDB状態・オプション・依存バージョン・Chrome／フォント環境では、時刻を含めず同じ出力を生成します。SVGのサイズや配置はOSやフォントにより変わる場合があります。SVG生成に失敗した場合はエラー終了し、新しいindexは書き込みません。生成対象と同名のファイルは上書きします。以前の実行の図や利用者のファイルは削除しないため、分割条件を変更した際は`index.md`を現行の図の一覧として利用してください。
 
 ## 分割と関係の解釈
 
@@ -100,7 +111,7 @@ npm test
 npm run build
 ```
 
-通常テストはグラフの不変条件、決定性、複合制約、cardinality、CLIの引数検証・認証情報非表示、実際のMermaidパーサーによる構文検証を含みます。
+通常テストはグラフの不変条件、決定性、複合制約、cardinality、CLIの引数検証・認証情報非表示、実際のMermaidパーサーによる構文検証、ChromeによるSVG生成・決定性・1対1対応・indexの画像参照の検証を含みます。通常テストにもChromeが必要です。
 
 PostgreSQL統合テストは専用テストDBを指定して実行します。指定がなければスキップします。指定DBに一時schemaを作成し、テスト後に削除します。PostgreSQL 16で検証しています。
 
@@ -112,7 +123,7 @@ TEST_DATABASE_URL='postgresql://localhost/erd_test' npm run test:integration
 
 ## 構成
 
-`src/postgres`がSQL・接続、`src/schema-graph`が中間モデルとfilter、`src/analysis`がグラフ分割、`src/render`がMermaid・JSON・indexを担当します。`generate()`は接続情報不要の純粋な生成API、`run()`はDB取得からファイル出力までのAPIです。
+`src/postgres`がSQL・接続、`src/schema-graph`が中間モデルとfilter、`src/analysis`がグラフ分割、`src/render`がMermaid・JSON・indexを担当します。`generate()`はブラウザー不要の同期APIで従来のMermaid・JSON・リンク型indexを返します。`await generateWithSvg()`はSVGと画像埋め込みindexを含む生成APIです。`run()`とCLIはDB取得からSVGを含む全ファイルの出力までを行います。
 
 設計の基準は[handoff](https://github.com/CastaChick/erd/blob/main/postgresql-er-diagram-cli-handoff.md)です。Mermaidのcardinalityは[公式構文](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)、Louvainの設定は[Graphology公式ドキュメント](https://graphology.github.io/standard-library/communities-louvain.html)と採用パッケージの宣言・実装を確認しています。
 
@@ -130,7 +141,7 @@ npm publish --dry-run
 npm publish
 ```
 
-`test:package`はtarballを生成し、一時ディレクトリへ本番依存だけでインストールしてCLIとESM APIを検証します。終了時に一時ファイルを削除します。`npm publish`では`prepublishOnly`が型チェックとテストを実行し、`prepack`がdistを再生成します。配布内容はdist、README、package.jsonに限定し、開発用ソースやテストは含めません。
+`test:package`はtarballを生成し、一時ディレクトリへ本番依存だけでインストールしてCLI・ESM API・SVG生成を検証します。終了時に一時ファイルを削除します。`npm publish`では`prepublishOnly`が型チェックとテストを実行し、`prepack`がdistを再生成します。配布内容はdist、README、package.jsonに限定し、開発用ソースやテストは含めません。
 
 DB統合テストも実行する場合は、専用DBの`TEST_DATABASE_URL`を設定してください。未指定時は統合テストをスキップします。`--dry-run`は実際の公開や2FA認証の成功を保証するものではありません。公開時にnpmから認証を要求された場合はその案内に従ってください。
 
