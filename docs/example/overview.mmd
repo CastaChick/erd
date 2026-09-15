@@ -1,0 +1,21 @@
+erDiagram
+    public_categories["public.categories"]
+
+    public_customers["public.customers"]
+
+    public_inventory["public.inventory"]
+
+    public_order_items["public.order_items"]
+
+    public_orders["public.orders"]
+
+    public_payments["public.payments"]
+
+    public_products["public.products"]
+
+    public_products ||..o{ public_inventory : "product_id"
+    public_orders ||..o{ public_order_items : "order_id"
+    public_products ||..o{ public_order_items : "product_id"
+    public_customers ||..o{ public_orders : "customer_id"
+    public_orders ||..o{ public_payments : "order_id"
+    public_categories |o..o{ public_products : "category_id"

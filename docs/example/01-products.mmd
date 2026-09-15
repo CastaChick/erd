@@ -1,0 +1,29 @@
+erDiagram
+    public_categories["public.categories"] {
+        uuid id PK "not null"
+        text name "not null"
+    }
+
+    public_inventory["public.inventory"] {
+        uuid id PK "not null"
+        uuid product_id FK "not null"
+        integer quantity "not null"
+    }
+
+    public_order_items["public.order_items (context)"] {
+        uuid id PK "not null"
+        uuid order_id FK "not null"
+        uuid product_id FK "not null"
+        integer quantity "not null"
+    }
+
+    public_products["public.products (hub)"] {
+        uuid id PK "not null"
+        uuid category_id FK "nullable"
+        text name "not null"
+        numeric_10_2_ price "not null"
+    }
+
+    public_products ||..o{ public_inventory : "product_id"
+    public_products ||..o{ public_order_items : "product_id"
+    public_categories |o..o{ public_products : "category_id"
