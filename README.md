@@ -163,8 +163,12 @@ npm publish --dry-run
 npm publish
 ```
 
-`test:package` creates a tarball, installs it with production dependencies in a temporary directory, and verifies the CLI, ESM API, and SVG generation. Temporary files are removed afterward. During `npm publish`, `prepublishOnly` runs type checking and tests, and `prepack` rebuilds dist. The package includes dist, both READMEs, generated example output, and package.json; development sources and tests are excluded.
+`test:package` creates a tarball, installs it with production dependencies in a temporary directory, and verifies the CLI, ESM API, and SVG generation. Temporary files are removed afterward. During `npm publish`, `prepublishOnly` runs type checking and tests, and `prepack` rebuilds dist. The package includes dist, both READMEs, generated example output, LICENSE, and package.json; development sources and tests are excluded.
 
 To also run database integration tests, set `TEST_DATABASE_URL` to a dedicated database. They are skipped otherwise. A dry run does not guarantee successful publishing or two-factor authentication. Follow npm's authentication instructions when prompted.
 
 For each release, update to an unpublished version; an existing version cannot be republished. After publishing, verify with `npm view @castachick/erd version` and `npx --package @castachick/erd erd --help`.
+
+## License
+
+Licensed under the [MIT License](LICENSE).
