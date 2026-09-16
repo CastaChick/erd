@@ -10,8 +10,11 @@ try {
   const result = JSON.parse(npm(['pack', '--json', '--pack-destination', temp]))[0];
   assert.equal(result.name, '@castachick/erd');
   const files = result.files.map(f => f.path);
-  for (const required of ['dist/cli.js', 'dist/main.js', 'dist/main.d.ts', 'README.md', 'package.json']) assert(files.includes(required));
-  assert(files.every(f => f.startsWith('dist/') || ['README.md', 'package.json', 'LICENSE'].includes(f)), 'Unexpected file in package');
+  for (const required of ['dist/cli.js', 'dist/main.js', 'dist/main.d.ts', 'README.md', 'README.ja.md', 'docs/example/index.md', 'docs/example/overview.svg', 'package.json', 'LICENSE']) {
+    assert(files.includes(required), `Missing required file in package: ${required}`);
+  }
+  const unexpected = files.filter(f => !f.startsWith('dist/') && !f.startsWith('docs/example/') && !['README.md', 'README.ja.md', 'package.json', 'LICENSE'].includes(f));
+  assert.equal(unexpected.length, 0, `Unexpected files in package: ${unexpected.join(', ')}`);
   await writeFile(join(temp, 'package.json'), '{"private":true,"type":"module"}\n');
   npm(['install', '--omit=dev', '--no-audit', '--no-fund', join(temp, result.filename)], temp);
   const installed = JSON.parse(await readFile(join(temp, 'node_modules/@castachick/erd/package.json'), 'utf8'));
