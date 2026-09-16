@@ -163,8 +163,12 @@ npm publish --dry-run
 npm publish
 ```
 
-`test:package`はtarballを生成し、一時ディレクトリへ本番依存だけでインストールしてCLI・ESM API・SVG生成を検証します。終了時に一時ファイルを削除します。`npm publish`では`prepublishOnly`が型チェックとテストを実行し、`prepack`がdistを再生成します。配布内容はdist、両言語のREADME、生成済みサンプル、package.jsonに限定し、開発用ソースやテストは含めません。
+`test:package`はtarballを生成し、一時ディレクトリへ本番依存だけでインストールしてCLI・ESM API・SVG生成を検証します。終了時に一時ファイルを削除します。`npm publish`では`prepublishOnly`が型チェックとテストを実行し、`prepack`がdistを再生成します。配布内容はdist、両言語のREADME、生成済みサンプル、LICENSE、package.jsonに限定し、開発用ソースやテストは含めません。
 
 DB統合テストも実行する場合は、専用DBの`TEST_DATABASE_URL`を設定してください。未指定時は統合テストをスキップします。`--dry-run`は実際の公開や2FA認証の成功を保証するものではありません。公開時にnpmから認証を要求された場合はその案内に従ってください。
 
 以後のリリースでは未公開のバージョンへ更新します。同じバージョンの再公開はできません。公開後は `npm view @castachick/erd version` と `npx --package @castachick/erd erd --help` で確認できます。
+
+## ライセンス
+
+[MITライセンス](LICENSE)で公開しています。

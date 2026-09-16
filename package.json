@@ -1,6 +1,7 @@
 {
   "name": "@castachick/erd",
   "version": "0.2.0",
+  "license": "MIT",
   "description": "Decompose PostgreSQL schemas into readable Mermaid ER diagrams",
   "type": "module",
   "bin": {
